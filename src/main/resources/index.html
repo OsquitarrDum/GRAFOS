@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simulador Eurail — JGraphT (Dijkstra & BFS)</title>
+    <style>
+        :root {
+          --bg: #090e1a;
+          --panel: #111827;
+          --card: #162033;
+          --border: #263449;
+          --text: #f1f5f9;
+          --muted: #94a3b8;
+          --accent: #38bdf8;
+          --dijkstra: #10b981;
+          --z0: #f43f5e;
+          --z1: #f59e0b;
+          --z2: #3b82f6;
+          --z3: #8b5cf6;
+          --z4: #14b8a6;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        html, body {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100vh;
+          overflow: hidden;
+          background: var(--bg);
+          color: var(--text);
+        }
+        body {
+          display: grid;
+          grid-template-columns: 320px 1fr;
+        }
+
+        /* Panel Lateral Compacto */
+        aside {
+          background: var(--panel);
+          border-right: 1px solid var(--border);
+          padding: 12px 14px;
+          height: 100vh;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .brand {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .brand h1 { font-size: 1.05rem; margin: 0; letter-spacing: -0.02em; }
+        .badge {
+          font-size: 0.68rem;
+          background: rgba(16, 185, 129, 0.14);
+          color: var(--dijkstra);
+          border: 1px solid rgba(16, 185, 129, 0.35);
+          padding: 2px 7px;
+          border-radius: 999px;
+          font-weight: 600;
+        }
+        .subtitle { font-size: 0.72rem; color: var(--muted); margin: 2px 0 0; }
+
+        .card {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 10px;
+        }
+        .card h2 {
+          font-size: 0.84rem;
+          margin: 0 0 6px 0;
+          color: var(--accent);
+        }
+        .row-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        label {
+          display: block;
+          font-size: 0.72rem;
+          color: var(--muted);
+          margin: 2px 0 3px;
+        }
+        select {
+          width: 100%;
+          padding: 6px 7px;
+          border-radius: 7px;
+          background: #0b1220;
+          color: var(--text);
+          border: 1px solid var(--border);
+          font-size: 0.79rem;
+          outline: none;
+        }
+        select:focus { border-color: var(--accent); }
+        input[type="range"] {
+          width: 100%;
+          accent-color: var(--accent);
+          cursor: pointer;
+          margin: 2px 0;
+        }
+        button {
+          width: 100%;
+          margin-top: 8px;
+          padding: 7px;
+          border: none;
+          border-radius: 7px;
+          font-weight: 600;
+          font-size: 0.79rem;
+          cursor: pointer;
+          transition: transform 0.1s, filter 0.2s;
+        }
+        button:active { transform: scale(0.99); }
+        .btn-dijkstra { background: var(--dijkstra); color: #042f1e; }
+        .btn-dijkstra:hover { filter: brightness(1.08); }
+        .btn-bfs { background: var(--accent); color: #06283d; }
+        .btn-bfs:hover { filter: brightness(1.08); }
+        .btn-reset {
+          background: transparent;
+          border: 1px solid var(--border);
+          color: var(--muted);
+          margin-top: auto;
+          padding: 6px;
+        }
+        .btn-reset:hover { border-color: #475569; color: var(--text); }
+
+        .result-box {
+          margin-top: 8px;
+          font-size: 0.76rem;
+          line-height: 1.4;
+          background: #0b1220;
+          padding: 7px 9px;
+          border-radius: 7px;
+          border: 1px solid var(--border);
+          max-height: 135px;
+          overflow-y: auto;
+        }
+        .pill {
+          display: inline-block;
+          padding: 1px 6px;
+          border-radius: 5px;
+          font-size: 0.71rem;
+          margin: 2px 2px 0 0;
+          font-weight: 600;
+        }
+
+        /* Área Principal del Mapa Ajustada al 100% del Alto */
+        main {
+          height: 100vh;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          background:
+            radial-gradient(circle at 50% 48%, rgba(30, 58, 138, 0.16), transparent 65%),
+            linear-gradient(rgba(30, 41, 59, 0.25) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30, 41, 59, 0.25) 1px, transparent 1px);
+          background-size: 100% 100%, 36px 36px, 36px 36px;
+        }
+        header {
+          flex-shrink: 0;
+          padding: 8px 16px;
+          background: rgba(17, 24, 39, 0.9);
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.76rem;
+          color: var(--muted);
+        }
+        .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.72rem; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+        .canvas-wrap {
+          flex: 1;
+          min-height: 0;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px 10px;
+        }
+        svg {
+          width: 100%;
+          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          user-select: none;
+        }
+
+        footer.tooltip-bar {
+          flex-shrink: 0;
+          padding: 6px 16px;
+          background: rgba(17, 24, 39, 0.9);
+          border-top: 1px solid var(--border);
+          font-size: 0.74rem;
+          color: var(--muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* Estilos de Aristas y Nodos SVG */
+        .edge-path {
+          fill: none;
+          stroke: #334155;
+          stroke-width: 1.7;
+          transition: stroke 0.25s, stroke-width 0.25s, opacity 0.25s;
+        }
+        .edge-dimmed { opacity: 0.14; }
+        .edge-hover-out { stroke: #38bdf8; stroke-width: 2.6; opacity: 1; }
+        .edge-hover-in { stroke: #f59e0b; stroke-width: 2.6; opacity: 1; }
+        .edge-active {
+          stroke: var(--dijkstra);
+          stroke-width: 3.8;
+          opacity: 1;
+          filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.75));
+        }
+        .edge-flow {
+          fill: none;
+          stroke: #a7f3d0;
+          stroke-width: 1.9;
+          stroke-dasharray: 6 10;
+          animation: trainFlow 1s linear infinite;
+          pointer-events: none;
+        }
+        @keyframes trainFlow {
+          to { stroke-dashoffset: -16; }
+        }
+
+        .weight-group { pointer-events: none; }
+        .weight-pill {
+          fill: #0b1220;
+          stroke: #334155;
+          stroke-width: 1;
+        }
+        .weight-pill-active {
+          fill: #064e3b;
+          stroke: var(--dijkstra);
+          stroke-width: 1.4;
+        }
+        .weight-text {
+          fill: #94a3b8;
+          font-size: 10px;
+          font-weight: 600;
+          text-anchor: middle;
+          dominant-baseline: central;
+        }
+        .weight-text-active { fill: #ecfdf5; }
+
+        .node-group { cursor: pointer; }
+        .node-halo {
+          fill: transparent;
+          stroke: transparent;
+          stroke-width: 2;
+          transition: all 0.2s;
+        }
+        .node-group:hover .node-halo {
+          stroke: rgba(56, 189, 248, 0.55);
+          fill: rgba(56, 189, 248, 0.08);
+        }
+        .node-circle {
+          fill: #131c2e;
+          stroke: #64748b;
+          stroke-width: 2.3;
+          transition: all 0.2s;
+        }
+        .node-label-bg {
+          fill: rgba(9, 14, 26, 0.86);
+        }
+        .node-label {
+          fill: #f8fafc;
+          font-size: 11.5px;
+          font-weight: 600;
+          text-anchor: middle;
+        }
+    </style>
+</head>
+<body>
+<aside>
+    <div>
+        <div class="brand">
+            <h1>Eurail Network</h1>
+            <span class="badge">Java JGraphT ●</span>
+        </div>
+        <p class="subtitle">Grafo Dirigido Ponderado · 15 Ciudades · 20 Rutas</p>
+    </div>
+
+    <!-- Módulo 1: Dijkstra -->
+    <div class="card">
+        <h2>1. Ruta Óptima (Dijkstra)</h2>
+        <div class="row-2">
+            <div>
+                <label for="dijkstraOrigen">Origen</label>
+                <select id="dijkstraOrigen"></select>
+            </div>
+            <div>
+                <label for="dijkstraDestino">Destino</label>
+                <select id="dijkstraDestino"></select>
+            </div>
+        </div>
+        <button class="btn-dijkstra" onclick="ejecutarDijkstra()">Calcular Ruta Más Rápida</button>
+        <div class="result-box" id="resultadoDijkstra">
+            Elige origen y destino (o haz clic en dos ciudades del mapa).
+        </div>
+    </div>
+
+    <!-- Módulo 2: BFS -->
+    <div class="card">
+        <h2>2. Zonas de Influencia (BFS)</h2>
+        <label for="bfsOrigen">Ciudad Central (Hub)</label>
+        <select id="bfsOrigen"></select>
+
+        <label for="bfsSaltos" style="margin-top:6px;">
+            Profundidad máxima (Saltos): <strong id="saltosVal" style="color:var(--accent)">2</strong>
+        </label>
+        <input type="range" id="bfsSaltos" min="1" max="4" value="2"
+               oninput="document.getElementById('saltosVal').textContent = this.value" />
+
+        <button class="btn-bfs" onclick="ejecutarBFS()">Analizar Cobertura BFS</button>
+        <div class="result-box" id="resultadoBFS">
+            Selecciona un hub para expandir niveles por saltos BFS.
+        </div>
+    </div>
+
+    <button class="btn-reset" onclick="resetearMapa()">Limpiar Selección Visual</button>
+</aside>
+
+<main>
+    <header>
+        <span>Red Ferroviaria Europea · Flechas indican sentido del tren</span>
+        <div class="legend">
+            <span><i class="dot" style="background:var(--dijkstra)"></i>Ruta Dijkstra</span>
+            <span><i class="dot" style="background:var(--z0)"></i>Origen (Z0)</span>
+            <span><i class="dot" style="background:var(--z1)"></i>1 Salto</span>
+            <span><i class="dot" style="background:var(--z2)"></i>2 Saltos</span>
+            <span><i class="dot" style="background:var(--z3)"></i>3+ Saltos</span>
+        </div>
+    </header>
+
+    <div class="canvas-wrap">
+        <svg id="mapaSvg" viewBox="0 0 1000 545" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <footer class="tooltip-bar" id="infoBar">
+        Pasa el cursor sobre una ciudad para ver sus salidas (azul) y llegadas (ámbar).
+    </footer>
+</main>
+
+<script>
+    // Coordenadas compactas dentro de viewBox 1000x545 sin cortes ni colisiones
+    const COORDS = {
+      London:    { x: 205, y: 105 },
+      Amsterdam: { x: 385, y: 118 },
+      Berlin:    { x: 615, y: 105 },
+      Warsaw:    { x: 875, y: 125 },
+      Brussels:  { x: 300, y: 195 },
+      Paris:     { x: 175, y: 255 },
+      Prague:    { x: 685, y: 215 },
+      Munich:    { x: 525, y: 245 },
+      Vienna:    { x: 755, y: 305 },
+      Zurich:    { x: 405, y: 315 },
+      Geneva:    { x: 280, y: 355 },
+      Milan:     { x: 445, y: 405 },
+      Budapest:  { x: 870, y: 385 },
+      Madrid:    { x: 115, y: 445 },
+      Rome:      { x: 555, y: 485 }
+    };
+
+    // Curvatura calibrada para que ninguna etiqueta (XXm) toque una ciudad
+    const CURVE_TUNING = {
+      "Paris->London":       { dx: -32,  dy: 0 },
+      "London->Berlin":      { dx: 15,   dy: -78 },
+      "London->Warsaw":      { dx: 60,   dy: -115 },
+      "Amsterdam->Brussels": { dx: -24,  dy: -8 },
+      "Brussels->Munich":    { dx: 0,    dy: -26 },
+      "Munich->Prague":      { dx: 0,    dy: -22 },
+      "Prague->Budapest":    { dx: 65,   dy: -35 },
+      "Vienna->Amsterdam":   { dx: 15,   dy: -65 },
+      "Amsterdam->Budapest": { dx: -15,  dy: 45 },
+      "Berlin->Rome":        { dx: 85,   dy: 20 },
+      "Berlin->Milan":       { dx: -105, dy: -10 },
+      "Rome->Madrid":        { dx: 0,    dy: 42 },
+      "Paris->Madrid":       { dx: -34,  dy: 0 },
+      "Madrid->Vienna":      { dx: 20,   dy: 125 },
+      "Rome->Brussels":      { dx: -135, dy: 10 },
+      "Budapest->Zurich":    { dx: 0,    dy: 38 },
+      "Zurich->Milan":       { dx: 26,   dy: 0 },
+      "Milan->Geneva":       { dx: -12,  dy: 24 },
+      "Prague->Geneva":      { dx: -25,  dy: -36 },
+      "Geneva->Warsaw":      { dx: -35,  dy: -68 }
+    };
+
+    const ZONE_COLORS = ['#f43f5e', '#f59e0b', '#3b82f6', '#8b5cf6', '#14b8a6'];
+    const NODE_RADIUS = 12.5;
+    let dataset = null;
+    let clickToggle = true;
+
+    async function inicializar() {
+      const res = await fetch('/api/grafo');
+      dataset = await res.json();
+
+      ['dijkstraOrigen', 'dijkstraDestino', 'bfsOrigen'].forEach(id => {
+        const el = document.getElementById(id);
+        dataset.nodos.forEach(ciudad => {
+          const opt = document.createElement('option');
+          opt.value = ciudad;
+          opt.textContent = ciudad;
+          el.appendChild(opt);
+        });
+      });
+
+      document.getElementById('dijkstraOrigen').value = 'Paris';
+      document.getElementById('dijkstraDestino').value = 'Geneva';
+      dibujarGrafo();
+    }
+
+    function calcularGeometriaCurva(u, v) {
+      const p0 = COORDS[u];
+      const p1 = COORDS[v];
+      const tune = CURVE_TUNING[`${u}->${v}`] || { dx: 0, dy: 0 };
+
+      const mx = (p0.x + p1.x) / 2 + tune.dx;
+      const my = (p0.y + p1.y) / 2 + tune.dy;
+
+      const labelX = 0.25 * p0.x + 0.5 * mx + 0.25 * p1.x;
+      const labelY = 0.25 * p0.y + 0.5 * my + 0.25 * p1.y;
+
+      const angle = Math.atan2(p1.y - my, p1.x - mx);
+      const endX = p1.x - (NODE_RADIUS + 5) * Math.cos(angle);
+      const endY = p1.y - (NODE_RADIUS + 5) * Math.sin(angle);
+
+      const d = `M ${p0.x} ${p0.y} Q ${mx} ${my} ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+      return { d, labelX, labelY };
+    }
+
+    function crearMarcadorFlecha(defs, id, color) {
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+      marker.setAttribute('id', id);
+      marker.setAttribute('viewBox', '0 0 10 10');
+      marker.setAttribute('refX', '8');
+      marker.setAttribute('refY', '5');
+      marker.setAttribute('markerWidth', '5.5');
+      marker.setAttribute('markerHeight', '5.5');
+      marker.setAttribute('orient', 'auto');
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M 0 1.5 L 9 5 L 0 8.5 z');
+      path.setAttribute('fill', color);
+      marker.appendChild(path);
+      defs.appendChild(marker);
+    }
+
+    function dibujarGrafo() {
+      const svg = document.getElementById('mapaSvg');
+      svg.innerHTML = '';
+
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      crearMarcadorFlecha(defs, 'arrow-default', '#475569');
+      crearMarcadorFlecha(defs, 'arrow-active', '#10b981');
+      crearMarcadorFlecha(defs, 'arrow-out', '#38bdf8');
+      crearMarcadorFlecha(defs, 'arrow-in', '#f59e0b');
+      svg.appendChild(defs);
+
+      const edgesLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      const flowLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      flowLayer.id = 'flowLayer';
+      const labelsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      const nodesLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+      dataset.rutas.forEach(r => {
+        const { d, labelX, labelY } = calcularGeometriaCurva(r.origen, r.destino);
+        const edgeId = `${r.origen}->${r.destino}`;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'edge-path');
+        path.setAttribute('marker-end', 'url(#arrow-default)');
+        path.dataset.edge = edgeId;
+        path.dataset.u = r.origen;
+        path.dataset.v = r.destino;
+        path.dataset.min = r.minutos;
+        edgesLayer.appendChild(path);
+
+        const wg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        wg.setAttribute('class', 'weight-group');
+        wg.dataset.edge = edgeId;
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', labelX - 14);
+        rect.setAttribute('y', labelY - 8.5);
+        rect.setAttribute('width', 28);
+        rect.setAttribute('height', 17);
+        rect.setAttribute('rx', 4);
+        rect.setAttribute('class', 'weight-pill');
+        wg.appendChild(rect);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', labelX);
+        text.setAttribute('y', labelY);
+        text.setAttribute('class', 'weight-text');
+        text.textContent = `${r.minutos}m`;
+        wg.appendChild(text);
+
+        labelsLayer.appendChild(wg);
+      });
+
+      dataset.nodos.forEach(ciudad => {
+        const p = COORDS[ciudad];
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'node-group');
+        g.dataset.city = ciudad;
+
+        const halo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        halo.setAttribute('cx', p.x);
+        halo.setAttribute('cy', p.y);
+        halo.setAttribute('r', NODE_RADIUS + 6);
+        halo.setAttribute('class', 'node-halo');
+        g.appendChild(halo);
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', p.x);
+        circle.setAttribute('cy', p.y);
+        circle.setAttribute('r', NODE_RADIUS);
+        circle.setAttribute('class', 'node-circle');
+        circle.id = 'node-' + ciudad;
+        g.appendChild(circle);
+
+        const textWidth = ciudad.length * 6.8 + 10;
+        const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        labelBg.setAttribute('x', p.x - textWidth / 2);
+        labelBg.setAttribute('y', p.y - 31);
+        labelBg.setAttribute('width', textWidth);
+        labelBg.setAttribute('height', 14);
+        labelBg.setAttribute('rx', 4);
+        labelBg.setAttribute('class', 'node-label-bg');
+        g.appendChild(labelBg);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', p.x);
+        label.setAttribute('y', p.y - 20.5);
+        label.setAttribute('class', 'node-label');
+        label.textContent = ciudad;
+        g.appendChild(label);
+
+        g.addEventListener('mouseenter', () => resaltarConexionesCiudad(ciudad));
+        g.addEventListener('mouseleave', () => restaurarVistaHover());
+        g.addEventListener('click', () => seleccionarCiudadDesdeMapa(ciudad));
+
+        nodesLayer.appendChild(g);
+      });
+
+      svg.appendChild(edgesLayer);
+      svg.appendChild(flowLayer);
+      svg.appendChild(labelsLayer);
+      svg.appendChild(nodesLayer);
+    }
+
+    function resaltarConexionesCiudad(ciudad) {
+      const salidas = [];
+      const entradas = [];
+
+      document.querySelectorAll('.edge-path').forEach(path => {
+        if (path.classList.contains('edge-active')) return;
+        const u = path.dataset.u;
+        const v = path.dataset.v;
+        if (u === ciudad) {
+          path.classList.add('edge-hover-out');
+          path.setAttribute('marker-end', 'url(#arrow-out)');
+          salidas.push(`${v} (${path.dataset.min}m)`);
+        } else if (v === ciudad) {
+          path.classList.add('edge-hover-in');
+          path.setAttribute('marker-end', 'url(#arrow-in)');
+          entradas.push(`${u} (${path.dataset.min}m)`);
+        } else {
+          path.classList.add('edge-dimmed');
+        }
+      });
+
+      document.getElementById('infoBar').innerHTML =
+        `<strong style="color:#fff">${ciudad}</strong> · ` +
+        `<span style="color:#38bdf8">Salidas:</span> ${salidas.length ? salidas.join(', ') : 'Ninguna'} · ` +
+        `<span style="color:#f59e0b">Llegadas:</span> ${entradas.length ? entradas.join(', ') : 'Ninguna'}`;
+    }
+
+    function restaurarVistaHover() {
+      document.querySelectorAll('.edge-path').forEach(path => {
+        path.classList.remove('edge-hover-out', 'edge-hover-in', 'edge-dimmed');
+        if (!path.classList.contains('edge-active')) {
+          path.setAttribute('marker-end', 'url(#arrow-default)');
+        }
+      });
+      document.getElementById('infoBar').textContent =
+        'Pasa el cursor sobre una ciudad para ver sus salidas (azul) y llegadas (ámbar).';
+    }
+
+    function seleccionarCiudadDesdeMapa(ciudad) {
+      if (clickToggle) {
+        document.getElementById('dijkstraOrigen').value = ciudad;
+        document.getElementById('bfsOrigen').value = ciudad;
+      } else {
+        document.getElementById('dijkstraDestino').value = ciudad;
+      }
+      clickToggle = !clickToggle;
+      ejecutarDijkstra();
+    }
+
+    function resetearMapa() {
+      document.getElementById('flowLayer').innerHTML = '';
+      document.querySelectorAll('.edge-path').forEach(e => {
+        e.classList.remove('edge-active', 'edge-hover-out', 'edge-hover-in', 'edge-dimmed');
+        e.setAttribute('marker-end', 'url(#arrow-default)');
+      });
+      document.querySelectorAll('.weight-pill').forEach(p => p.classList.remove('weight-pill-active'));
+      document.querySelectorAll('.weight-text').forEach(t => t.classList.remove('weight-text-active'));
+      document.querySelectorAll('.node-circle').forEach(n => {
+        n.style.fill = '#131c2e';
+        n.style.stroke = '#64748b';
+        n.setAttribute('r', NODE_RADIUS);
+      });
+    }
+
+    async function ejecutarDijkstra() {
+      const origen = document.getElementById('dijkstraOrigen').value;
+      const destino = document.getElementById('dijkstraDestino').value;
+      const res = await fetch(`/api/dijkstra?origen=${encodeURIComponent(origen)}&destino=${encodeURIComponent(destino)}`);
+      const data = await res.json();
+
+      resetearMapa();
+      if (data.error) {
+        document.getElementById('resultadoDijkstra').innerHTML =
+          `<span style="color:#f43f5e">⚠ ${data.error}</span>`;
+        return;
+      }
+
+      const flowLayer = document.getElementById('flowLayer');
+
+      data.tramos.forEach(t => {
+        const edgeId = `${t.desde}->${t.hasta}`;
+        const path = document.querySelector(`.edge-path[data-edge="${edgeId}"]`);
+        if (path) {
+          path.classList.add('edge-active');
+          path.setAttribute('marker-end', 'url(#arrow-active)');
+
+          const flow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          flow.setAttribute('d', path.getAttribute('d'));
+          flow.setAttribute('class', 'edge-flow');
+          flowLayer.appendChild(flow);
+        }
+
+        const wg = document.querySelector(`.weight-group[data-edge="${edgeId}"]`);
+        if (wg) {
+          wg.querySelector('.weight-pill').classList.add('weight-pill-active');
+          wg.querySelector('.weight-text').classList.add('weight-text-active');
+        }
+      });
+
+      data.camino.forEach((ciudad, idx) => {
+        const node = document.getElementById('node-' + ciudad);
+        node.style.fill = idx === 0 ? '#f43f5e' : '#10b981';
+        node.style.stroke = '#ffffff';
+        node.setAttribute('r', 14.5);
+      });
+
+      const detalleTramos = data.tramos
+        .map(t => `${t.desde} → ${t.hasta} <strong>(${t.minutos} min)</strong>`)
+        .join('<br>');
+
+      document.getElementById('resultadoDijkstra').innerHTML = `
+        <div style="margin-bottom:4px;">
+          <strong style="color:#fff;">Tiempo Óptimo: ${data.tiempoTotal} min</strong>
+          <span style="color:var(--muted)">(${data.saltos} tramos)</span>
+        </div>
+        <div style="color:var(--dijkstra); font-weight:600; margin-bottom:5px;">
+          ${data.camino.join(' → ')}
+        </div>
+        <div style="border-top:1px solid var(--border); padding-top:5px; color:#cbd5e1;">
+          ${detalleTramos}
+        </div>
+      `;
+    }
+
+    async function ejecutarBFS() {
+      const origen = document.getElementById('bfsOrigen').value;
+      const saltos = document.getElementById('bfsSaltos').value;
+      const res = await fetch(`/api/bfs?origen=${encodeURIComponent(origen)}&saltos=${saltos}`);
+      const data = await res.json();
+
+      resetearMapa();
+      let html = `<strong>Alcance BFS: ${data.totalCiudades} de 15 ciudades</strong><div style="margin-top:5px;">`;
+
+      Object.entries(data.zonas).forEach(([nivel, ciudades]) => {
+        const color = ZONE_COLORS[Math.min(Number(nivel), ZONE_COLORS.length - 1)];
+        ciudades.forEach(ciudad => {
+          const node = document.getElementById('node-' + ciudad);
+          node.style.fill = color;
+          node.style.stroke = '#ffffff';
+          node.setAttribute('r', nivel === '0' ? 15 : 13.5);
+        });
+
+        const titulo = nivel === '0' ? 'Zona 0 (Hub)' : `Zona ${nivel} (${nivel} salto${nivel > 1 ? 's' : ''})`;
+        const badges = ciudades
+          .map(c => `<span class="pill" style="background:${color}2b; border:1px solid ${color}; color:#fff">${c}</span>`)
+          .join('');
+        html += `<div style="margin-bottom:5px;"><small style="color:var(--muted)">${titulo}:</small><br>${badges}</div>`;
+      });
+
+      html += '</div>';
+      document.getElementById('resultadoBFS').innerHTML = html;
+    }
+
+    inicializar();
+</script>
+</body>
+</html>
